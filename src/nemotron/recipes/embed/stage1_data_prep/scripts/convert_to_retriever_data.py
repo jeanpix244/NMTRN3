@@ -2,15 +2,15 @@
 """
 Convert SDG generated output to retriever data formats.
 
-This script converts the generated JSON files from the SDG pipeline into:
+This script converts the generated JSON/JSONL files from the SDG pipeline into:
 1. Training format: train.json (retriever training format)
 2. Validation format: val.json (same format as training)
 3. Test/Evaluation format: BEIR-compatible format (corpus.jsonl, queries.jsonl, qrels/test.tsv)
 4. Corpus: parquet + metadata (shared across all splits)
 
 Supports both:
-- A folder of batch files (generated_batch*.json)
-- A single merged JSON file
+- A folder of batch files (generated_batch*.json or generated_batch*.jsonl)
+- A single merged JSON or JSONL file
 
 Supports splitting data into train/val/test sets with configurable ratios (default: 0.8/0.1/0.1).
 
@@ -286,14 +286,27 @@ def get_file_identifier(file_name_list: list[str]) -> str:
     return hashlib.md5("||".join(normalized_paths).encode()).hexdigest()[:16]
 
 
+def load_json_or_jsonl_records(json_file: str) -> list[dict[str, Any]]:
+    """Load a JSON object, JSON array, or JSONL file into a list of records."""
+    with open(json_file, encoding="utf-8") as f:
+        content = f.read()
+
+    try:
+        records = json.loads(content)
+    except json.JSONDecodeError:
+        return [json.loads(line) for line in content.splitlines() if line.strip()]
+
+    return records if isinstance(records, list) else [records]
+
+
 def load_generated_json_files(input_path: str) -> pd.DataFrame:
     """
     Load generated JSON data from either a single file or a folder of batch files.
 
     Args:
         input_path: Path to either:
-            - A single merged JSON file
-            - A folder containing generated_batch*.json files
+            - A single merged JSON or JSONL file
+            - A folder containing generated_batch*.json or generated_batch*.jsonl files
 
     Returns:
         Combined DataFrame with all records
@@ -303,42 +316,28 @@ def load_generated_json_files(input_path: str) -> pd.DataFrame:
     # Check if input is a file or directory
     if os.path.isfile(input_path):
         # Single file mode (merged JSON)
-        print(f"Loading single JSON file: {input_path}")
-        with open(input_path, encoding="utf-8") as f:
-            content = f.read()
-        try:
-            records = json.loads(content)
-        except json.JSONDecodeError:
-            # JSONL: one JSON object per line
-            for line in content.splitlines():
-                line = line.strip()
-                if line:
-                    all_records.append(json.loads(line))
-        else:
-            if isinstance(records, list):
-                all_records.extend(records)
-            else:
-                all_records.append(records)
+        print(f"Loading single JSON/JSONL file: {input_path}")
+        all_records.extend(load_json_or_jsonl_records(input_path))
     else:
         # Folder mode (batch files)
-        json_files = sorted(glob.glob(os.path.join(input_path, "generated_batch*.json")))
+        json_files = sorted(
+            glob.glob(os.path.join(input_path, "generated_batch*.json"))
+            + glob.glob(os.path.join(input_path, "generated_batch*.jsonl"))
+        )
 
         if not json_files:
-            json_files = sorted(glob.glob(os.path.join(input_path, "*.json")))
+            json_files = sorted(
+                glob.glob(os.path.join(input_path, "*.json")) + glob.glob(os.path.join(input_path, "*.jsonl"))
+            )
 
         if not json_files:
-            raise ValueError(f"No JSON files found in {input_path}")
+            raise ValueError(f"No JSON/JSONL files found in {input_path}")
 
-        print(f"Found {len(json_files)} JSON files")
+        print(f"Found {len(json_files)} JSON/JSONL files")
 
         for json_file in json_files:
             print(f"  Loading: {json_file}")
-            with open(json_file, encoding="utf-8") as f:
-                records = json.load(f)
-                if isinstance(records, list):
-                    all_records.extend(records)
-                else:
-                    all_records.append(records)
+            all_records.extend(load_json_or_jsonl_records(json_file))
 
     # Normalize file_name to list format (backward compat for old string format)
     print("Normalizing file_name fields...")
@@ -739,7 +738,9 @@ def main():
         description="Convert SDG output to retriever data formats (training and/or evaluation)"
     )
     parser.add_argument(
-        "input_path", type=str, help="Path to merged JSON file or folder containing generated_batch*.json files"
+        "input_path",
+        type=str,
+        help="Path to merged JSON/JSONL file or folder containing generated_batch*.json/jsonl files",
     )
     parser.add_argument("--corpus-id", type=str, required=True, help='Corpus identifier (e.g., "my_corpus")')
     parser.add_argument(

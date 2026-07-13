@@ -47,6 +47,42 @@ def test_load_generated_json_file_falls_back_to_jsonl(tmp_path):
     assert df["file_name"].tolist() == [["a.txt"], ["b.txt"]]
 
 
+def test_load_generated_json_directory_discovers_jsonl_extension(tmp_path):
+    input_dir = tmp_path / "stage0_sdg"
+    input_dir.mkdir()
+    (input_dir / "nv_docs_sdg.jsonl").write_text(
+        "\n".join(json.dumps(_record(name)) for name in ["a.txt", "b.txt"]),
+        encoding="utf-8",
+    )
+
+    df = load_generated_json_files(str(input_dir))
+
+    assert len(df) == 2
+    assert df["file_name"].tolist() == [["a.txt"], ["b.txt"]]
+
+
+def test_load_generated_json_directory_discovers_generated_batch_jsonl(tmp_path):
+    input_dir = tmp_path / "stage0_sdg"
+    input_dir.mkdir()
+    (input_dir / "generated_batch_000.json").write_text(
+        json.dumps(_record("a.txt")),
+        encoding="utf-8",
+    )
+    (input_dir / "generated_batch_001.jsonl").write_text(
+        json.dumps(_record("b.txt")),
+        encoding="utf-8",
+    )
+    (input_dir / "fallback.jsonl").write_text(
+        json.dumps(_record("fallback.txt")),
+        encoding="utf-8",
+    )
+
+    df = load_generated_json_files(str(input_dir))
+
+    assert len(df) == 2
+    assert df["file_name"].tolist() == [["a.txt"], ["b.txt"]]
+
+
 def test_train_val_test_split_orders_files_before_seeded_shuffle():
     df = pd.DataFrame(
         [
