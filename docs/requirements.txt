@@ -1,0 +1,9 @@
+# Dependencies required to build the Sphinx documentation site.
+# Kept in sync with the [dependency-groups] docs entry in pyproject.toml.
+myst-parser>=4.0.1
+nvidia-sphinx-theme>=0.0.8
+sphinx>=8.1.3
+sphinx-copybutton>=0.5.2
+sphinx-design>=0.6.0
+sphinxcontrib-mermaid
+sphinx-reredirects
