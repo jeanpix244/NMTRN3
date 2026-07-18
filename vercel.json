@@ -1,7 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv venv .venv --python 3.12 && $HOME/.local/bin/uv pip install --python .venv -r docs/requirements.txt",
-  "buildCommand": ".venv/bin/python -m sphinx -b html docs docs/_build/html",
-  "outputDirectory": "docs/_build/html"
+  "outputDirectory": "public"
 }
