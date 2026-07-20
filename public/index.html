@@ -93,6 +93,139 @@ font-size: 14px;
 }
 footer a { color: var(--nvidia-green); text-decoration: none; }
 @media (max-width: 640px) { h1 { font-size: 34px; } }
+
+/* Chat widget */
+.chat-toggle {
+position: fixed;
+bottom: 24px;
+right: 24px;
+z-index: 1000;
+display: flex;
+align-items: center;
+gap: 8px;
+background: var(--nvidia-green);
+color: #0d1117;
+border: none;
+border-radius: 999px;
+padding: 14px 20px;
+font-size: 15px;
+font-weight: 600;
+cursor: pointer;
+box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+transition: transform 0.15s, opacity 0.15s;
+}
+.chat-toggle:hover { transform: translateY(-2px); }
+.chat-toggle svg { width: 20px; height: 20px; }
+.chat-panel {
+position: fixed;
+bottom: 24px;
+right: 24px;
+z-index: 1001;
+width: 380px;
+max-width: calc(100vw - 32px);
+height: 560px;
+max-height: calc(100vh - 48px);
+display: none;
+flex-direction: column;
+background: var(--bg-card);
+border: 1px solid var(--border);
+border-radius: 16px;
+overflow: hidden;
+box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+.chat-panel.open { display: flex; }
+.chat-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 16px 18px;
+border-bottom: 1px solid var(--border);
+background: radial-gradient(ellipse at top left, rgba(118, 185, 0, 0.15), transparent 70%);
+}
+.chat-header h4 { font-size: 16px; }
+.chat-header .status { color: var(--text-muted); font-size: 12px; }
+.chat-close {
+background: none;
+border: none;
+color: var(--text-muted);
+font-size: 22px;
+line-height: 1;
+cursor: pointer;
+padding: 0 4px;
+}
+.chat-close:hover { color: var(--text); }
+.chat-messages {
+flex: 1;
+overflow-y: auto;
+padding: 18px;
+display: flex;
+flex-direction: column;
+gap: 12px;
+}
+.chat-msg {
+max-width: 85%;
+padding: 10px 14px;
+border-radius: 14px;
+font-size: 14px;
+white-space: pre-wrap;
+word-wrap: break-word;
+}
+.chat-msg.user {
+align-self: flex-end;
+background: var(--nvidia-green);
+color: #0d1117;
+border-bottom-right-radius: 4px;
+}
+.chat-msg.bot {
+align-self: flex-start;
+background: #0d1117;
+border: 1px solid var(--border);
+color: var(--text);
+border-bottom-left-radius: 4px;
+}
+.chat-msg.error { border-color: #f85149; color: #ff7b72; }
+.chat-typing { align-self: flex-start; color: var(--text-muted); font-size: 13px; padding: 4px 6px; }
+.chat-typing span {
+display: inline-block;
+width: 6px; height: 6px;
+margin: 0 1px;
+background: var(--text-muted);
+border-radius: 50%;
+animation: chat-blink 1.2s infinite both;
+}
+.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chat-blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+.chat-input {
+display: flex;
+gap: 8px;
+padding: 14px;
+border-top: 1px solid var(--border);
+}
+.chat-input textarea {
+flex: 1;
+resize: none;
+background: #0d1117;
+border: 1px solid var(--border);
+border-radius: 10px;
+color: var(--text);
+padding: 10px 12px;
+font-family: inherit;
+font-size: 14px;
+line-height: 1.4;
+max-height: 120px;
+}
+.chat-input textarea:focus { outline: none; border-color: var(--nvidia-green); }
+.chat-send {
+background: var(--nvidia-green);
+color: #0d1117;
+border: none;
+border-radius: 10px;
+padding: 0 16px;
+font-weight: 600;
+cursor: pointer;
+}
+.chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -224,5 +357,135 @@ uv run nemotron steps list</pre>
 <p>Apache 2.0 Licensed · <a href="https://github.com/jeanpix244/NMTRN3">GitHub</a> · <a href="https://www.nvidia.com/en-us/ai-data-science/foundation-models/nemotron/">NVIDIA Nemotron</a></p>
 </div>
 </footer>
+
+<button class="chat-toggle" id="chatToggle" aria-label="Open chat assistant">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+Ask Nemotron
+</button>
+
+<div class="chat-panel" id="chatPanel" role="dialog" aria-label="Nemotron assistant">
+<div class="chat-header">
+<div>
+<h4>Nemotron Assistant</h4>
+<div class="status">Powered by NVIDIA Nemotron</div>
+</div>
+<button class="chat-close" id="chatClose" aria-label="Close chat">&times;</button>
+</div>
+<div class="chat-messages" id="chatMessages"></div>
+<div class="chat-input">
+<textarea id="chatText" rows="1" placeholder="Ask about the Nemotron model family…"></textarea>
+<button class="chat-send" id="chatSend">Send</button>
+</div>
+</div>
+
+<script>
+(function () {
+  var toggle = document.getElementById("chatToggle");
+  var panel = document.getElementById("chatPanel");
+  var closeBtn = document.getElementById("chatClose");
+  var messages = document.getElementById("chatMessages");
+  var text = document.getElementById("chatText");
+  var send = document.getElementById("chatSend");
+  var history = [];
+  var busy = false;
+  var greeted = false;
+
+  function scrollDown() { messages.scrollTop = messages.scrollHeight; }
+
+  function addMessage(role, content) {
+    var el = document.createElement("div");
+    el.className = "chat-msg " + role;
+    el.textContent = content;
+    messages.appendChild(el);
+    scrollDown();
+    return el;
+  }
+
+  function openPanel() {
+    panel.classList.add("open");
+    toggle.style.display = "none";
+    if (!greeted) {
+      greeted = true;
+      addMessage(
+        "bot",
+        "Hi! I'm the Nemotron assistant. Ask me about the model family, training recipes, deployment, or how to use this repository."
+      );
+    }
+    text.focus();
+  }
+
+  function closePanel() {
+    panel.classList.remove("open");
+    toggle.style.display = "flex";
+  }
+
+  function showTyping() {
+    var el = document.createElement("div");
+    el.className = "chat-typing";
+    el.innerHTML = "<span></span><span></span><span></span>";
+    el.id = "chatTyping";
+    messages.appendChild(el);
+    scrollDown();
+  }
+
+  function hideTyping() {
+    var el = document.getElementById("chatTyping");
+    if (el) el.remove();
+  }
+
+  function setBusy(state) {
+    busy = state;
+    send.disabled = state;
+    text.disabled = state;
+  }
+
+  async function sendMessage() {
+    var content = text.value.trim();
+    if (!content || busy) return;
+    text.value = "";
+    text.style.height = "auto";
+    addMessage("user", content);
+    history.push({ role: "user", content: content });
+    setBusy(true);
+    showTyping();
+
+    try {
+      var res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      var data = await res.json();
+      hideTyping();
+      if (!res.ok) {
+        addMessage("bot error", data.error || "Something went wrong.");
+      } else {
+        addMessage("bot", data.reply);
+        history.push({ role: "assistant", content: data.reply });
+      }
+    } catch (err) {
+      hideTyping();
+      addMessage("bot error", "Network error — please try again.");
+    } finally {
+      setBusy(false);
+      text.focus();
+    }
+  }
+
+  toggle.addEventListener("click", openPanel);
+  closeBtn.addEventListener("click", closePanel);
+  send.addEventListener("click", sendMessage);
+  text.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  text.addEventListener("input", function () {
+    text.style.height = "auto";
+    text.style.height = Math.min(text.scrollHeight, 120) + "px";
+  });
+})();
+</script>
 </body>
 </html>
